@@ -151,6 +151,7 @@ function setWatcher(){
    done = done + doneLast;
     if(done == todo){
       stopWatcher();
+      removeClean();
       printReport();
     }
   }, 1000);
@@ -238,6 +239,10 @@ function reportOnLocal(){
       dtdStuff(f, f);
     });
   });
+}
+
+function removeClean(){
+  console.log(files);
 }
 
 if(argv.issue){
