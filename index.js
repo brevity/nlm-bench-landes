@@ -54,7 +54,6 @@ function getXML(pii){
 
 function dtdStuff(pii, fileName){
   var r = report[pii] = {};
-
   r.errs = [];
   r.warns = [];
   
@@ -77,6 +76,7 @@ function dtdStuff(pii, fileName){
 
 function xslStuff(pii, xml){
   if(String(pii).indexOf('X' !== -1)){
+    
     $ = cheerio.load(xml.toString());
     var fileName = pii;
     $('article-id').is(function(i){
@@ -235,6 +235,7 @@ function reportOnLocal(){
       var xml = fs.readFileSync('xml/' + f);
 
       xslStuff(f, xml);
+      dtdStuff(f, f);
     });
   });
 }
