@@ -246,7 +246,6 @@ function reportOnLocal(){
 
 function removeClean(clean){
   clean.map(function(e,i){
-    console.log(e, fileNames[e]);
     var path = './xml/' + fileNames[e];
     if(fs.statSync(path).isFile()){
       fs.unlinkSync(path);

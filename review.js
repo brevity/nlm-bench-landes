@@ -57,11 +57,12 @@ function scrape(){
       piis: piis,
       issues: issues
     };
-    console.log(report);
+    console.log("A report of articles and issues currently under review has been saved as", "underreview.json".green);
+    console.log("Now we'll take a look at the loose articles under review");
     fs.writeFileSync('underreview.json', JSON.stringify(report));
 
   // Kick off scrape for issueless articles under review
-  //exec("node index.js --under", puts);
+  exec("node index.js --under", puts);
 
   });
 }
