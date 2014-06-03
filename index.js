@@ -84,7 +84,6 @@ function xslStuff(pii, xml){
         pii = $(this).text();
       }
     });
-    fileNames[pii] = fileName;
   }
   
   if(xml === ''){
@@ -151,14 +150,12 @@ function setWatcher(){
    done = done + doneLast;
     if(done == todo){
       stopWatcher();
-      removeClean();
-      printReport();
+      cleanup();
     }
   }, 1000);
   return watcher;
 }
-var r;
-function printReport(){
+function cleanup(){
   clean = [];
   for(var pii in report){
     r = report[pii];
@@ -170,6 +167,11 @@ function printReport(){
      // if(r.warns.length === 0 ){delete r.warns;}
     }
   }
+  removeClean(clean);
+  printReport(clean);
+}
+//var r;
+function printReport(){
   var cleanReport;
   if(clean.length > 0){ 
     cleanReport = "[ Clean ] " + String(clean);
@@ -183,7 +185,7 @@ function printReport(){
 
   fs.writeFileSync('xml/piiToFile.txt', piiToFileString);
   console.log(cleanReport.green);
-  for( pii in report){
+  for( var pii in report){
     r = report[pii];
     var errs = r.errs.concat(r.warns),
         errorCount = "[ " + pii + " ] " + "[ " + fileNames[pii] + " ] " + errs.length + " Error(s)",
@@ -230,6 +232,7 @@ function reportOnLocal(){
         return false;
       }
     });
+    if(files.length === 0){console.log("no xml files found.".red);process.exit();}
     progress.todo = files.length;
     setWatcher();
     files.map(function(f, i, a){
@@ -241,8 +244,14 @@ function reportOnLocal(){
   });
 }
 
-function removeClean(){
-  console.log(files);
+function removeClean(clean){
+  clean.map(function(e,i){
+    console.log(e, fileNames[e]);
+    var path = './xml/' + fileNames[e];
+    if(fs.statSync(path).isFile()){
+      fs.unlinkSync(path);
+    }
+  });
 }
 
 if(argv.issue){
