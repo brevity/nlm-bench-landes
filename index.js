@@ -8,6 +8,8 @@ var argv = require('minimist')(process.argv.slice(2)),
     xslt = require('node_xslt'),
     cheerio = require('cheerio'),
     spawn = require('child_process').spawn,
+    readline = require('readline'),
+    exec = require('child_process').exec,
     ProgressBar = require('progress');
 
    
@@ -53,11 +55,33 @@ function getXML(pii){
 }
 
 function dtdStuff(pii, fileName){
+
+
+  var rd = readline.createInterface({
+    input: fs.createReadStream('xml/' + fileName),
+    output: process.stdout,
+    terminal: false
+  });
+
+  rd.on('line', function(line) {
+    if(line.indexOf('DOCTYPE') > -1){
+
+      var snip = line.split(' ');
+      snip = snip[snip.length -1];
+      snip = snip.split('.');
+      snip = snip[0];
+
+      var dtd = snip.substr(1);
+      lintIt(pii, fileName, dtd);
+    }
+  });
+}
+function lintIt(pii, fileName, dtd){
   var r = report[pii] = {};
   r.errs = [];
   r.warns = [];
-  
-  var xmllint = spawn('xmllint', ['--noout', '--path', 'dtd', '--dtdvalid', 'journalpub-oasis3.dtd', 'xml/' + fileName]);
+  var dtdSwitch = exec('');
+  var xmllint = spawn('xmllint', ['--noout', '--path', 'dtd/' + dtd, '--dtdvalid', dtd + '.dtd', 'xml/' + fileName]);
   //console.log(xmllint);
   xmllint.stderr.on('error', function(err) {
     console.log(err);
@@ -167,7 +191,7 @@ function cleanup(){
      // if(r.warns.length === 0 ){delete r.warns;}
     }
   }
-  removeClean(clean);
+  if(!argv.local){removeClean(clean);}
   printReport(clean);
 }
 //var r;
