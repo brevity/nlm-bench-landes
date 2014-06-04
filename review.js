@@ -36,6 +36,13 @@ function scrape(){
 
   request(url, function(err, res, body){
     //var $ = cheerio.load(body);
+    if(process.env.LANDES_USER == 'username' || process.env.LANDES_PASS == 'password' || process.env.LANDES_USER === undefined || process.env.LANDES_PASS === undefined){
+      console.log("| Dude.....".blue);
+      console.log("| You gotta use your actual username and password... ".red);
+      console.log("| That oneliner in the README should've setup the environment variables,".red);
+      console.log("| but you need to put in your actual landes credentials".red);
+      process.exit();
+    }
     var json = JSON.parse(body);
     json.rows.map(function(e, i){
       if(e.cell[10] == '-' && e.cell[8] == 'reviewing issue'){

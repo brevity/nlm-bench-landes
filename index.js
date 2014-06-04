@@ -222,6 +222,7 @@ function printReport(){
     }
     console.log("-----------------------------------------");
   }
+  console.log("valid xml has been reomved.".green, " xml with errors can be found in the xml/ directory".red);
 }
 function reportOnPiis(piis){
   progress.todo = piis.length;
