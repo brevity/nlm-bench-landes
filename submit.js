@@ -70,14 +70,28 @@ function getReview(cb){
 }
 
 function cleanup(err, resp){
-  console.log(resp);
+  //console.log(resp);
 }
 
 function examineArticles(err, resp){
-  var piis = resp[1].piis;
+  var piis = resp[1].piis,
+      toSubmit = [],
+      toResubmit = [];
   piis.map(function lookAtNotes(e,i){
-    console.log(e.notes);
+    var notes = e.notes || '';
+    notes = notes.toLowerCase();
+    if(notes.indexOf('verif') > -1){
+      if(notes.indexOf('valid') > -1 ){
+        if (notes.indexOf('resub') < 0){
+          toSubmit.push(e.pii);
+        } else if (notes.indexOf('resub') > -1){
+          toResubmit.push(e.pii);
+        }
+      }
+    }
   });
+  console.log(toSubmit);
+  console.log(toResubmit);
   async.series([
     
   ], cleanup);

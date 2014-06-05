@@ -1,15 +1,15 @@
 #!/usr/local/bin/node
 
 var argv = require('minimist')(process.argv.slice(2)),
-    util = require('util'),
-    request = require('request'),
-    fs = require('fs'),
     colors = require('colors'),
+    spawn = require('child_process').spawn,
+    fs = require('fs'),
+    readline = require('readline'),
+    util = require('util'),
+    _ = require('underscore'),
+    request = require('request'),
     xslt = require('node_xslt'),
     cheerio = require('cheerio'),
-    spawn = require('child_process').spawn,
-    readline = require('readline'),
-    exec = require('child_process').exec,
     ProgressBar = require('progress');
 
    
@@ -80,7 +80,6 @@ function lintIt(pii, fileName, dtd){
   var r = report[pii] = {};
   r.errs = [];
   r.warns = [];
-  var dtdSwitch = exec('');
   var xmllint = spawn('xmllint', ['--noout', '--path', 'dtd/' + dtd, '--dtdvalid', dtd + '.dtd', 'xml/' + fileName]);
   //console.log(xmllint);
   xmllint.stderr.on('error', function(err) {
@@ -181,34 +180,34 @@ function setWatcher(){
 }
 function cleanup(){
   clean = [];
+  dirty = [];
   for(var pii in report){
     r = report[pii];
     if(r.errs.length === 0 && r.warns.length === 0){
       clean.push(pii);
       delete report[pii];
     } else{
+      dirty.push(pii);
      // if(r.errs.length === 0 ){delete r.errs;}
      // if(r.warns.length === 0 ){delete r.warns;}
     }
   }
   if(!argv.local){removeClean(clean);}
+  if(argv.m){markValidPiis(clean);}
+  if(argv.v){oneOffMarkItVerified();}
   printReport(clean);
 }
 //var r;
-function printReport(){
-  var cleanReport;
-  if(clean.length > 0){ 
-    cleanReport = "[ Clean ] " + String(clean);
-  } else {
-    cleanReport = "[ Clean ] NONE";
-  }
+function printReport(clean){
+  var cleanReport = "[ Clean ] " + clean.join(' '),
+      dirtyReport = "[ dirty ] " + dirty.join(' ');
   var piiToFileString = "";
   for(var p in fileNames){
     piiToFileString = piiToFileString + "\n" + p + "      " + fileNames[p];
   }
 
   fs.writeFileSync('xml/piiToFile.txt', piiToFileString);
-  console.log(cleanReport.green);
+
   for( var pii in report){
     r = report[pii];
     var errs = r.errs.concat(r.warns),
@@ -222,7 +221,9 @@ function printReport(){
     }
     console.log("-----------------------------------------");
   }
-  console.log("valid xml has been reomved.".green, " xml with errors can be found in the xml/ directory".red);
+  console.log(cleanReport.green);
+  console.log(dirtyReport.red);
+  console.log("valid xml has been removed.".green, " xml with errors can be found in the xml/ directory".red);
 }
 function reportOnPiis(piis){
   progress.todo = piis.length;
@@ -269,6 +270,91 @@ function reportOnLocal(){
   });
 }
 
+function markValidPiis(clean){
+  if(argv.issue || argv.local) {return;}
+  var url = 'http://www.landesbioscience.com/full_text/xml_reports/review_jqgrid/',
+      articles = {};
+
+  request(url, function markValidFetch(err, res, body){
+    var json = JSON.parse(body);
+    json.rows.map(function(e, i){
+      var keys = ['jgridID','mysteryInt', 'slug', 'volume', 'issue', 'pii', 'editor', 'it', 'status', 'days', 'completed', 'notes'];
+      if(e.cell[8] == 'reviewing issue'){
+        var article = {};
+        keys.map(function(k, ii){
+          article[k] = e.cell[ii];
+        });
+        articles[article.pii] = article;
+      }
+    });
+    var alreadyValid = [];
+    clean.map(function getNotes(e,i){
+      var article = articles[e];
+      if(article.notes.toLowerCase().indexOf('valid') < 0){
+        console.log('need to mark valid:', e, article.jgridID, article.notes);
+        var newNotes = '@valid ' + article.notes;
+        var r = request.post(url, function markValidPost(err, httpResponse, bod) {
+          if (err) {
+            return console.error('markValidPost failed:', err);
+          }
+          console.log(article.pii, 'has been marked @valid');
+        });
+        var form = r.form();
+        form.append('id', article.jgridID);
+        form.append('review_notes', newNotes);
+
+      } else {
+        console.log('already marked valid:', e, article.jgridID, article.notes);
+      }
+    });
+    //Here's where we go add valid to the notes
+    //cb(null, {piis:piis, issues:issues});
+  });
+  
+}
+
+function oneOffMarkItVerified(){
+  //AJT somethings not quite right here
+  if(argv.issue || argv.local) {return;}
+  var url = 'http://www.landesbioscience.com/full_text/xml_reports/review_jqgrid/',
+      articles = {};
+
+  request(url, function markValidFetch(err, res, body){
+    var json = JSON.parse(body);
+    json.rows.map(function(e, i){
+      var keys = ['jgridID','mysteryInt', 'slug', 'volume', 'issue', 'pii', 'editor', 'it', 'status', 'days', 'completed', 'notes'];
+      if(e.cell[8] == 'reviewing issue' && e.days > 2){
+        var article = {};
+        keys.map(function(k, ii){
+          article[k] = e.cell[ii];
+        });
+        articles[article.pii] = article;
+      }
+    });
+    _.each(articles, function getNotes(e,i){
+      var article = articles[e];
+      if(article.notes.toLowerCase().indexOf('verif') < 0){
+        var newNotes = '@verif ' + article.notes;
+        var r = request.post(url, function markVerifPost(err, httpResponse, bod) {
+          if (err) {
+            return console.error('markVerif failed:', err);
+          }
+          console.log(article.pii, 'has been marked @verif');
+        });
+        var form = r.form();
+        form.append('id', article.jgridID);
+        form.append('review_notes', newNotes);
+
+      } else {
+        console.log('already marked verif:', e, article.jgridID, article.notes);
+      }
+    });
+    //Here's where we go add valid to the notes
+    //cb(null, {piis:piis, issues:issues});
+  });
+  
+}
+
 function removeClean(clean){
   clean.map(function(e,i){
     var path = './xml/' + fileNames[e];
@@ -285,7 +371,7 @@ if(process.env.LANDES_USER == 'username' || process.env.LANDES_PASS == 'password
   process.exit();
 }
 if(argv.issue){
-  console.log("Looks like you want to check all the nlm files of isse", argv.issue.blue);
+  console.log("Looks like you want to check all the nlm files of issue", argv.issue.blue);
   reportOnIssue(argv.issue);
 } else if (argv.local){
   reportOnLocal();

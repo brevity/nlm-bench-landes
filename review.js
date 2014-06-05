@@ -64,6 +64,7 @@ function scrape(){
       piis: piis,
       issues: issues
     };
+    console.log("[ issues ]".yellow, report.issues.join(' ').yellow);
     console.log("A report of articles and issues currently under review has been saved as", "underreview.json".green);
     console.log("Now we'll take a look at the loose articles under review");
     fs.writeFileSync('underreview.json', JSON.stringify(report));
