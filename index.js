@@ -16,6 +16,9 @@ var argv = require('minimist')(process.argv.slice(2)),
 report = {};
 var requests = {};
 var fileNames = [];
+var issue = '';
+
+info      = require('./journal_info.js');
 
 progress = {
   todo: 0,
@@ -47,6 +50,12 @@ function getXML(pii){
   var xmlurl = 'http://www.landesbioscience.com/admin/article/' + pii + '/download_xml';
   request.get(xmlurl, function(req, resp){
     var fileName = resp.headers['content-disposition'].split('=')[1].replace (/"/g,'');
+    
+    // if run with -r flag, rename for reuters submission.
+    if(argv.r && issue !== ''){
+
+      fileName = issue.join('-') + '-' + pii + '.xml';
+    }
     fileNames[pii] = fileName;
     xslStuff(pii, resp.body);
     fs.writeFileSync('./xml/' + fileName, resp.body);
@@ -192,7 +201,7 @@ function cleanup(){
      // if(r.warns.length === 0 ){delete r.warns;}
     }
   }
-  if(!argv.local){removeClean(clean);}
+  if(!argv.local && !argv.r){removeClean(clean);}
   if(argv.m){markValidPiis(clean);}
   if(argv.v){oneOffMarkItVerified();}
   printReport(clean);
@@ -240,11 +249,15 @@ function getPiis(id){
 
     $('li[article_id]').each(function(i,e){
       piis.push($(e).attr('article_id'));});
+
+      issue = issue.split('/');
+      issue[0] = info.slugs[issue[0]];
     reportOnPiis(piis);
   });
 }
 
 function reportOnIssue(id){
+    issue = id;
     authenticate(id, getPiis);
 }
 
